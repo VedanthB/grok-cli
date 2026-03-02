@@ -2,7 +2,7 @@ import { describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 
 describe('chat', () => {
-  it('sends basic chat request', async () => {
+  it('sends basic chat request to /chat/completions', async () => {
     const mockClient = {
       post: mock.fn(async () => ({
         choices: [{ message: { content: 'Hello!' } }]
@@ -11,7 +11,8 @@ describe('chat', () => {
     const { chat } = await import('../lib/chat.js')
     const result = await chat(mockClient, 'Hi', { model: 'grok-3-mini' })
     assert.equal(result.choices[0].message.content, 'Hello!')
-    const body = JSON.parse(JSON.stringify(mockClient.post.mock.calls[0].arguments[1]))
+    const [path, body] = mockClient.post.mock.calls[0].arguments
+    assert.equal(path, '/chat/completions')
     assert.equal(body.model, 'grok-3-mini')
     assert.equal(body.messages[0].role, 'user')
     assert.equal(body.messages[0].content, 'Hi')
@@ -30,27 +31,30 @@ describe('chat', () => {
     assert.ok(body.messages[0].content.includes('review this'))
   })
 
-  it('includes web_search tool when --search flag set', async () => {
+  it('routes to /responses with web_search when --search flag set', async () => {
     const mockClient = {
       post: mock.fn(async () => ({
-        choices: [{ message: { content: 'Search result.' } }]
+        output: [{ content: [{ type: 'output_text', text: 'Search result.' }] }]
       }))
     }
     const { chat } = await import('../lib/chat.js')
-    await chat(mockClient, 'latest AI news', { model: 'grok-3-mini', search: true })
-    const body = mockClient.post.mock.calls[0].arguments[1]
+    await chat(mockClient, 'latest AI news', { search: true })
+    const [path, body] = mockClient.post.mock.calls[0].arguments
+    assert.equal(path, '/responses')
     assert.ok(body.tools.some(t => t.type === 'web_search'))
+    assert.equal(body.input[0].content, 'latest AI news')
   })
 
-  it('includes x_search tool when --xsearch flag set', async () => {
+  it('routes to /responses with x_search when --xsearch flag set', async () => {
     const mockClient = {
       post: mock.fn(async () => ({
-        choices: [{ message: { content: 'Tweet result.' } }]
+        output: [{ content: [{ type: 'output_text', text: 'Tweet result.' }] }]
       }))
     }
     const { chat } = await import('../lib/chat.js')
-    await chat(mockClient, 'trending on X', { model: 'grok-3-mini', xsearch: true })
-    const body = mockClient.post.mock.calls[0].arguments[1]
+    await chat(mockClient, 'trending on X', { xsearch: true })
+    const [path, body] = mockClient.post.mock.calls[0].arguments
+    assert.equal(path, '/responses')
     assert.ok(body.tools.some(t => t.type === 'x_search'))
   })
 

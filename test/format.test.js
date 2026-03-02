@@ -30,4 +30,15 @@ describe('format', () => {
     const result = formatImage({ data: [{ b64_json: 'abc' }] }, 'out.png')
     assert.ok(result.includes('out.png'))
   })
+
+  it('formatChat handles Responses API format', async () => {
+    const { formatChat } = await import('../lib/format.js')
+    const result = formatChat({
+      output: [
+        { type: 'web_search_call', status: 'completed' },
+        { type: 'message', content: [{ type: 'output_text', text: 'Search result here.' }] }
+      ]
+    })
+    assert.equal(result, 'Search result here.')
+  })
 })
