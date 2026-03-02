@@ -1,0 +1,22 @@
+{
+  "name": "grok-terminal",
+  "version": "1.0.0",
+  "description": "AI from your terminal — xAI Grok API CLI",
+  "type": "module",
+  "bin": {
+    "grok": "bin/grok.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["grok", "xai", "ai", "cli", "chat", "search", "image"],
+  "license": "MIT",
+  "author": "Vedanth Bora",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VedanthB/grok-cli"
+  }
+}
