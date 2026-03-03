@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=JetBrains+Mono:wght@500&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1200px;
+      height: 630px;
+      background: #09090B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    /* Cyan grid */
+    .grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.06) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    /* Radial glow */
+    .glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(0,212,255,0.12) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+    .icon-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .icon-box {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: rgba(0,212,255,0.1);
+      border: 2px solid rgba(0,212,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-box svg {
+      color: #00D4FF;
+    }
+    .brand-name {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 72px;
+      color: #fff;
+      letter-spacing: -2px;
+    }
+    .tagline {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 36px;
+      color: #00D4FF;
+      margin-bottom: 40px;
+    }
+    .install {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 32px;
+      background: #18181B;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+    }
+    .install .dollar {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      color: #00D4FF;
+    }
+    .install .cmd {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      color: #e4e4e7;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="glow"></div>
+  <div class="content">
+    <div class="icon-row">
+      <div class="icon-box">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="2.5">
+          <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+        </svg>
+      </div>
+      <span class="brand-name">grok</span>
+    </div>
+    <div class="tagline">AI from your terminal.</div>
+    <div class="install">
+      <span class="dollar">$</span>
+      <span class="cmd">npm install -g grok-terminal</span>
+    </div>
+  </div>
+</body>
+</html>

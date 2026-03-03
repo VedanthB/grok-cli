@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>grok — AI from your terminal</title>
+  <meta name="description" content="Zero-dependency CLI for the xAI Grok API. Chat, search, image gen, video gen, vision, embeddings, and structured outputs — all from your terminal.">
+  <meta property="og:title" content="grok — AI from your terminal">
+  <meta property="og:description" content="Zero-dependency CLI for the xAI Grok API. Chat, search, image gen, video gen, vision, and more.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://grok.akarispeed.xyz">
+  <meta property="og:image" content="https://grok.akarispeed.xyz/og.png">
+  <meta property="og:site_name" content="grok">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="grok — AI from your terminal">
+  <meta name="twitter:description" content="Zero-dependency CLI for the xAI Grok API. Chat, search, image gen, video gen, vision, and more.">
+  <meta name="twitter:image" content="https://grok.akarispeed.xyz/og.png">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="Vedanth Bora">
+  <meta name="keywords" content="grok, xAI, grok API, CLI, terminal, AI chat, image generation, video generation, web search, developer tool, zero dependency, pipe friendly, grok-terminal">
+  <link rel="canonical" href="https://grok.akarispeed.xyz">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "grok",
+    "description": "Zero-dependency CLI for the xAI Grok API. Chat, search, image gen, video gen, vision, embeddings, and structured outputs from your terminal.",
+    "url": "https://grok.akarispeed.xyz",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS, Linux, Windows",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Vedanth Bora" },
+    "codeRepository": "https://github.com/VedanthB/grok-cli",
+    "programmingLanguage": "JavaScript",
+    "softwareRequirements": "Node.js >= 18"
+  }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            zinc: {
+              950: '#09090B',
+            },
+            brand: {
+              DEFAULT: '#00D4FF',
+              light: '#33DFFF',
+              dark: '#00A8CC',
+              dim: '#00D4FF15',
+            },
+            surface: {
+              DEFAULT: '#18181B',
+              light: '#27272A',
+            }
+          },
+          fontFamily: {
+            display: ['Outfit', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Outfit', system-ui, sans-serif; }
+
+    /* Scanline overlay */
+    .scanlines::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Text glow */
+    .text-glow {
+      text-shadow: 0 0 40px rgba(0,212,255,0.3), 0 0 80px rgba(0,212,255,0.1);
+    }
+
+    /* Cursor blink */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .cursor-blink { animation: blink 1s step-end infinite; }
+
+    /* Fade up */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-up {
+      opacity: 0;
+      animation: fadeUp 0.6s ease-out forwards;
+    }
+    .delay-100 { animation-delay: 0.1s; }
+    .delay-200 { animation-delay: 0.2s; }
+    .delay-300 { animation-delay: 0.3s; }
+    .delay-400 { animation-delay: 0.4s; }
+    .delay-500 { animation-delay: 0.5s; }
+
+    /* Terminal output fade */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .terminal-fade { animation: fadeIn 0.3s ease-out forwards; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #09090B; }
+    ::-webkit-scrollbar-thumb { background: #27272A; border-radius: 3px; }
+
+    /* Selection */
+    ::selection { background: #00D4FF33; color: #FAFAFA; }
+
+    /* Scroll-triggered */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .scanlines::after { display: none; }
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-300 antialiased scanlines">
+
+  <!-- Nav -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-zinc-950/80 backdrop-blur-xl">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center group-hover:bg-brand/20 transition-colors duration-200">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-brand">
+            <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+        </div>
+        <span class="font-mono font-semibold text-white text-lg tracking-tight">grok</span>
+      </a>
+      <div class="flex items-center gap-4 sm:gap-6">
+        <a href="#features" class="text-sm text-zinc-500 hover:text-white transition-colors duration-200 hidden sm:block">Features</a>
+        <a href="#commands" class="text-sm text-zinc-500 hover:text-white transition-colors duration-200 hidden sm:block">Commands</a>
+        <a href="#api" class="text-sm text-zinc-500 hover:text-white transition-colors duration-200 hidden sm:block">API Coverage</a>
+        <a href="#install" class="text-sm text-zinc-500 hover:text-white transition-colors duration-200 hidden sm:block">Install</a>
+        <a href="https://github.com/VedanthB/grok-cli" target="_blank" rel="noopener" class="flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors duration-200">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span class="hidden sm:inline">GitHub</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="relative min-h-screen flex items-center overflow-hidden pt-16">
+    <!-- Cyan grid background -->
+    <div class="absolute inset-0 bg-[linear-gradient(rgba(0,212,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.04)_1px,transparent_1px)] bg-[size:60px_60px]"></div>
+    <!-- Radial glow blob -->
+    <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-brand/5 rounded-full blur-[120px]"></div>
+
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20 sm:py-32">
+      <div class="max-w-3xl">
+        <div class="animate-fade-up">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand/20 bg-brand/5 text-brand text-xs font-medium mb-8">
+            <span class="w-1.5 h-1.5 rounded-full bg-brand animate-pulse"></span>
+            Zero dependencies. 10+ API endpoints. One CLI.
+          </div>
+        </div>
+
+        <h1 class="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white leading-[1.1] tracking-tight animate-fade-up delay-100 font-display">
+          AI from your<br>
+          <span class="text-brand text-glow">terminal.</span>
+        </h1>
+
+        <p class="mt-6 sm:mt-8 text-lg sm:text-xl text-zinc-400 max-w-xl leading-relaxed animate-fade-up delay-200">
+          Chat, search the web, generate images and videos, analyze vision, get embeddings — all through the xAI Grok API, from a single CLI with
+          <span class="font-mono text-zinc-300 bg-surface px-1.5 py-0.5 rounded text-base">zero dependencies</span>.
+        </p>
+
+        <div class="mt-8 sm:mt-10 flex flex-col sm:flex-row gap-3 animate-fade-up delay-300">
+          <button onclick="copyInstall()" id="install-btn" class="group flex items-center gap-3 px-5 py-3.5 rounded-xl bg-surface border border-white/10 hover:border-brand/30 transition-all duration-200 cursor-pointer">
+            <span class="font-mono text-sm text-brand">$</span>
+            <span class="font-mono text-sm text-white" id="install-text">npm install -g grok-terminal</span>
+            <svg id="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 group-hover:text-brand transition-colors duration-200 ml-2 flex-shrink-0">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+            </svg>
+          </button>
+          <a href="https://github.com/VedanthB/grok-cli" target="_blank" rel="noopener" class="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-brand hover:bg-brand-light text-zinc-950 font-semibold text-sm transition-colors duration-200">
+            View on GitHub
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Animated Terminal Demo -->
+      <div class="mt-16 sm:mt-20 animate-fade-up delay-400">
+        <div class="rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50">
+          <!-- Terminal header -->
+          <div class="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-surface/80">
+            <div class="w-3 h-3 rounded-full bg-red-500/60"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500/60"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500/60"></div>
+            <span class="ml-3 text-xs text-zinc-500 font-mono">grok</span>
+          </div>
+          <!-- Terminal body -->
+          <div class="p-5 sm:p-6 font-mono text-sm min-h-[200px] sm:min-h-[220px]">
+            <div id="terminal-output"></div>
+            <div id="terminal-prompt" class="flex items-center gap-2">
+              <span class="text-brand">$</span>
+              <span id="terminal-cmd" class="text-white"></span>
+              <span class="cursor-blink text-brand">_</span>
+            </div>
+          </div>
+          <!-- Carousel dots -->
+          <div class="flex items-center justify-center gap-2 pb-4">
+            <div class="demo-dot w-2 h-2 rounded-full bg-brand transition-colors duration-200" data-index="0"></div>
+            <div class="demo-dot w-2 h-2 rounded-full bg-zinc-700 transition-colors duration-200" data-index="1"></div>
+            <div class="demo-dot w-2 h-2 rounded-full bg-zinc-700 transition-colors duration-200" data-index="2"></div>
+            <div class="demo-dot w-2 h-2 rounded-full bg-zinc-700 transition-colors duration-200" data-index="3"></div>
+            <div class="demo-dot w-2 h-2 rounded-full bg-zinc-700 transition-colors duration-200" data-index="4"></div>
+            <div class="demo-dot w-2 h-2 rounded-full bg-zinc-700 transition-colors duration-200" data-index="5"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="relative py-24 sm:py-32">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16 reveal">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white font-display">Everything the API offers,<br>in one command</h2>
+        <p class="mt-4 text-zinc-400 text-lg max-w-2xl mx-auto">Eight capabilities. Zero dependencies. Install and go.</p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Feature 1 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Chat & Streaming</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Real-time streaming, system messages, temperature control. Pipe stdin for code review.</p>
+        </div>
+        <!-- Feature 2 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Web & X Search</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Search the web or X/Twitter via the Responses API. Grounded answers with citations.</p>
+        </div>
+        <!-- Feature 3 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Video Generation</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Text-to-video, image-to-video, video editing. Async polling with auto-download.</p>
+        </div>
+        <!-- Feature 4 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Image Generation</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Generate images with standard or pro models. Save to file with <code class="font-mono text-xs bg-white/5 px-1 rounded">-o</code>.</p>
+        </div>
+        <!-- Feature 5 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Vision Analysis</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Analyze local images or URLs. Ask questions about what you see. Multimodal chat.</p>
+        </div>
+        <!-- Feature 6 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Structured Output</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Constrain responses to JSON schemas. Parse-friendly output for automation pipelines.</p>
+        </div>
+        <!-- Feature 7 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Zero Dependencies</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Only Node.js built-in <code class="font-mono text-xs bg-white/5 px-1 rounded">fetch()</code>. No SDK, no framework, no bloat.</p>
+        </div>
+        <!-- Feature 8 -->
+        <div class="reveal group p-6 rounded-2xl border border-white/5 bg-surface/30 hover:bg-surface/50 hover:border-brand/10 transition-all duration-200">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </div>
+          <h3 class="font-semibold text-white">Pipe-Friendly</h3>
+          <p class="mt-2 text-zinc-500 text-sm leading-relaxed">Stdout-first. Pipe files in, chain outputs, use with <code class="font-mono text-xs bg-white/5 px-1 rounded">jq</code>, build scripts.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- API Coverage -->
+  <section id="api" class="relative py-24 sm:py-32 border-t border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16 reveal">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white font-display">Full API coverage</h2>
+        <p class="mt-4 text-zinc-400 text-lg">Every xAI endpoint mapped to a simple command or flag.</p>
+      </div>
+
+      <div class="max-w-4xl mx-auto reveal">
+        <div class="rounded-2xl border border-white/10 bg-surface/30 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-white/10">
+                  <th class="text-left px-6 py-4 text-brand font-mono font-medium text-xs uppercase tracking-wider">Feature</th>
+                  <th class="text-left px-6 py-4 text-brand font-mono font-medium text-xs uppercase tracking-wider">Command / Flag</th>
+                  <th class="text-left px-6 py-4 text-brand font-mono font-medium text-xs uppercase tracking-wider">Endpoint</th>
+                </tr>
+              </thead>
+              <tbody class="font-mono text-xs sm:text-sm">
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Chat</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok chat</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/chat/completions</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Streaming</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">--stream</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/chat/completions (SSE)</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Web search</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok search / --search</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/responses</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">X search</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok xsearch / --xsearch</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/responses</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Image gen</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok image</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/images/generations</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Video gen</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok video</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/videos/generations</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Vision</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok vision</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/chat/completions</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Embeddings</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok embed</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/embeddings</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Models</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok models</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/models</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Structured output</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">--response-format</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/chat/completions</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">Deferred</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">--deferred</td>
+                  <td class="px-6 py-3 text-zinc-500">/v1/chat/completions + polling</td>
+                </tr>
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-zinc-300 font-display">System messages</td>
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">--system</td>
+                  <td class="px-6 py-3 text-zinc-500">All chat/search endpoints</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Commands -->
+  <section id="commands" class="relative py-24 sm:py-32 border-t border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16 reveal">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white font-display">Commands & flags</h2>
+        <p class="mt-4 text-zinc-400 text-lg">Nine commands. Fifteen flags. Infinite pipelines.</p>
+      </div>
+
+      <!-- Commands table -->
+      <div class="max-w-3xl mx-auto mb-12 reveal">
+        <div class="rounded-2xl border border-white/10 bg-surface/30 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-white/10">
+                  <th class="text-left px-6 py-4 text-brand font-mono font-medium text-xs uppercase tracking-wider">Command</th>
+                  <th class="text-left px-6 py-4 text-brand font-mono font-medium text-xs uppercase tracking-wider">Description</th>
+                </tr>
+              </thead>
+              <tbody class="font-mono">
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok chat</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">Chat with any Grok model</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok search</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">Web search via Responses API</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok xsearch</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">X/Twitter search via Responses API</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok image</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">Generate images (standard or pro)</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok video</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">Generate videos with polling & download</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok vision</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">Analyze images (local file or URL)</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok embed</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">Generate text embeddings</td>
+                </tr>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok models</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">List available models</td>
+                </tr>
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                  <td class="px-6 py-3 text-brand whitespace-nowrap">grok auth</td>
+                  <td class="px-6 py-3 text-zinc-300 font-display">Manage API key (show / set / check)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flags grid -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl mx-auto">
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--model, -m</div>
+          <p class="text-sm text-zinc-500">Model selection</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--stream, -s</div>
+          <p class="text-sm text-zinc-500">Stream response tokens</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--temperature, -t</div>
+          <p class="text-sm text-zinc-500">Sampling temperature (0-2)</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--max-tokens</div>
+          <p class="text-sm text-zinc-500">Max response tokens</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--json</div>
+          <p class="text-sm text-zinc-500">Raw API JSON output</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--system</div>
+          <p class="text-sm text-zinc-500">System message / instructions</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--search / --xsearch</div>
+          <p class="text-sm text-zinc-500">Enable web or X search</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--deferred</div>
+          <p class="text-sm text-zinc-500">Async completion with polling</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--response-format</div>
+          <p class="text-sm text-zinc-500">Constrain output format (JSON)</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--pro</div>
+          <p class="text-sm text-zinc-500">Pro image model</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--duration</div>
+          <p class="text-sm text-zinc-500">Video duration (1-15s)</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--image / --video-url</div>
+          <p class="text-sm text-zinc-500">Source media for video gen</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--no-poll</div>
+          <p class="text-sm text-zinc-500">Return request_id only</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--output, -o</div>
+          <p class="text-sm text-zinc-500">Save to file</p>
+        </div>
+        <div class="reveal p-4 rounded-xl border border-white/5 bg-surface/20">
+          <div class="font-mono text-xs text-brand mb-1">--api-key / --file</div>
+          <p class="text-sm text-zinc-500">Override key / read from file</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install CTA -->
+  <section id="install" class="relative py-24 sm:py-32 border-t border-white/5">
+    <div class="absolute inset-0 bg-gradient-to-t from-brand/5 to-transparent"></div>
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div class="reveal">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white font-display">Get started in 30 seconds</h2>
+        <p class="mt-4 text-zinc-400 text-lg">One install. Set your key. Start prompting.</p>
+      </div>
+
+      <div class="mt-10 max-w-xl mx-auto reveal">
+        <div class="rounded-2xl border border-white/10 bg-surface/50 p-6 font-mono text-sm text-left leading-8">
+          <div><span class="text-zinc-600"># Install globally</span></div>
+          <div><span class="text-brand">$</span> <span class="text-white">npm install -g grok-terminal</span></div>
+          <div class="mt-3"><span class="text-zinc-600"># Set your API key</span></div>
+          <div><span class="text-brand">$</span> <span class="text-white">grok auth set xai-your-key</span></div>
+          <div class="mt-3"><span class="text-zinc-600"># Chat</span></div>
+          <div><span class="text-brand">$</span> <span class="text-white">grok chat "explain quantum computing"</span></div>
+          <div class="mt-3"><span class="text-zinc-600"># Search the web</span></div>
+          <div><span class="text-brand">$</span> <span class="text-white">grok search "latest AI news"</span></div>
+          <div class="mt-3"><span class="text-zinc-600"># Generate an image</span></div>
+          <div><span class="text-brand">$</span> <span class="text-white">grok image "a cat in space" -o cat.png</span></div>
+        </div>
+      </div>
+
+      <div class="mt-10 flex flex-col sm:flex-row gap-3 justify-center reveal">
+        <a href="https://github.com/VedanthB/grok-cli" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-brand hover:bg-brand-light text-zinc-950 font-semibold text-sm transition-colors duration-200">
+          View on GitHub
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
+        </a>
+        <a href="https://www.npmjs.com/package/grok-terminal" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-white/10 hover:border-brand/30 text-white font-semibold text-sm transition-all duration-200">
+          npm package
+        </a>
+        <a href="https://docs.x.ai/api" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-white/10 hover:border-brand/30 text-white font-semibold text-sm transition-all duration-200">
+          xAI API Docs
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/5 py-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-sm text-zinc-500">grok-terminal</span>
+        <span class="text-zinc-700">v1.0.0</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm text-zinc-500">
+        <a href="https://github.com/VedanthB/grok-cli" target="_blank" rel="noopener" class="hover:text-white transition-colors duration-200">GitHub</a>
+        <a href="https://www.npmjs.com/package/grok-terminal" target="_blank" rel="noopener" class="hover:text-white transition-colors duration-200">npm</a>
+        <a href="https://docs.x.ai/api" target="_blank" rel="noopener" class="hover:text-white transition-colors duration-200">xAI Docs</a>
+        <span>MIT License</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // === Terminal Demo Engine ===
+    // All demo data is static/hardcoded - no user input involved
+    var demos = [
+      {
+        cmd: 'grok chat "explain quantum computing in one sentence"',
+        output: [
+          { text: 'Quantum computing uses quantum bits that can exist in multiple states simultaneously,', cls: 'text-zinc-300' },
+          { text: 'enabling parallel processing of complex problems exponentially faster than classical computers.', cls: 'text-zinc-300' },
+        ]
+      },
+      {
+        cmd: 'grok search "who won the 2026 Super Bowl"',
+        output: [
+          { text: 'Based on web search results:', cls: 'text-zinc-500' },
+          { text: 'The Detroit Lions won Super Bowl LX on February 8, 2026,', cls: 'text-zinc-300' },
+          { text: 'defeating the Buffalo Bills 31-27 at Levi\'s Stadium.', cls: 'text-zinc-300' },
+        ]
+      },
+      {
+        cmd: 'grok video "a cat playing with a ball" -o cat.mp4',
+        output: [
+          { text: 'Generating video...', cls: 'text-zinc-500' },
+          { text: 'Polling... status: generating (attempt 1/30)', cls: 'text-zinc-500' },
+          { text: 'Polling... status: generating (attempt 2/30)', cls: 'text-zinc-500' },
+          { text: 'Video ready! Saved to cat.mp4 (2.4MB)', cls: 'text-brand' },
+        ]
+      },
+      {
+        cmd: 'grok image "a cyberpunk cityscape at night" -o city.png',
+        output: [
+          { text: 'Generating image...', cls: 'text-zinc-500' },
+          { text: 'Image saved to city.png (1.2MB)', cls: 'text-brand' },
+        ]
+      },
+      {
+        cmd: 'cat app.py | grok chat "review this code for bugs"',
+        output: [
+          { text: 'Found 2 issues:', cls: 'text-zinc-300' },
+          { text: '  1. Line 23: SQL injection \u2014 use parameterized queries', cls: 'text-yellow-400' },
+          { text: '  2. Line 41: Unclosed file handle \u2014 use context manager', cls: 'text-yellow-400' },
+        ]
+      },
+      {
+        cmd: 'grok vision photo.png "what do you see?"',
+        output: [
+          { text: 'The image shows a golden retriever sitting on a wooden dock', cls: 'text-zinc-300' },
+          { text: 'overlooking a calm lake at sunset, with pine trees in the background.', cls: 'text-zinc-300' },
+        ]
+      },
+    ];
+
+    var currentDemo = 0;
+    var cmdEl = document.getElementById('terminal-cmd');
+    var outputEl = document.getElementById('terminal-output');
+    var promptEl = document.getElementById('terminal-prompt');
+    var dots = document.querySelectorAll('.demo-dot');
+
+    function updateDots(index) {
+      dots.forEach(function(d, i) {
+        d.className = 'demo-dot w-2 h-2 rounded-full transition-colors duration-200 ' +
+          (i === index ? 'bg-brand' : 'bg-zinc-700');
+      });
+    }
+
+    function typeCommand(text, callback) {
+      var i = 0;
+      cmdEl.textContent = '';
+      function type() {
+        if (i < text.length) {
+          cmdEl.textContent += text[i];
+          i++;
+          setTimeout(type, 25 + Math.random() * 25);
+        } else {
+          callback();
+        }
+      }
+      type();
+    }
+
+    function clearTerminal() {
+      while (outputEl.firstChild) {
+        outputEl.removeChild(outputEl.firstChild);
+      }
+    }
+
+    function createPromptLine(cmdText) {
+      var div = document.createElement('div');
+      div.className = 'leading-7 mb-1';
+      var dollar = document.createElement('span');
+      dollar.className = 'text-brand';
+      dollar.textContent = '$ ';
+      var cmd = document.createElement('span');
+      cmd.className = 'text-white';
+      cmd.textContent = cmdText;
+      div.appendChild(dollar);
+      div.appendChild(cmd);
+      return div;
+    }
+
+    function createOutputLine(text, cls) {
+      var div = document.createElement('div');
+      div.className = cls + ' terminal-fade leading-7';
+      div.textContent = text;
+      return div;
+    }
+
+    function showOutput(lines, callback) {
+      promptEl.style.display = 'none';
+      var i = 0;
+      outputEl.appendChild(createPromptLine(demos[currentDemo].cmd));
+      function showLine() {
+        if (i < lines.length) {
+          outputEl.appendChild(createOutputLine(lines[i].text, lines[i].cls));
+          i++;
+          setTimeout(showLine, 300);
+        } else {
+          callback();
+        }
+      }
+      showLine();
+    }
+
+    function runDemo() {
+      var demo = demos[currentDemo];
+      clearTerminal();
+      promptEl.style.display = 'flex';
+      cmdEl.textContent = '';
+      updateDots(currentDemo);
+
+      typeCommand(demo.cmd, function() {
+        setTimeout(function() {
+          showOutput(demo.output, function() {
+            setTimeout(function() {
+              currentDemo = (currentDemo + 1) % demos.length;
+              runDemo();
+            }, 2500);
+          });
+        }, 400);
+      });
+    }
+
+    // Start after page load
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setTimeout(runDemo, 1500);
+    } else {
+      // Static fallback for reduced motion
+      var demo = demos[0];
+      outputEl.appendChild(createPromptLine(demo.cmd));
+      demo.output.forEach(function(line) {
+        outputEl.appendChild(createOutputLine(line.text, line.cls));
+      });
+      promptEl.style.display = 'none';
+    }
+
+    // === Copy to Clipboard ===
+    function copyInstall() {
+      navigator.clipboard.writeText('npm install -g grok-terminal');
+      var textEl = document.getElementById('install-text');
+      textEl.textContent = 'Copied!';
+      setTimeout(function() {
+        textEl.textContent = 'npm install -g grok-terminal';
+      }, 2000);
+    }
+
+    // === Scroll-triggered Reveals ===
+    var revealObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(function(el) {
+      revealObserver.observe(el);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://grok.akarispeed.xyz/sitemap.xml
