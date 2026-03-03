@@ -70,4 +70,43 @@ describe('chat', () => {
     assert.equal(body.temperature, 0.5)
     assert.equal(body.max_tokens, 100)
   })
+
+  it('prepends system message when provided', async () => {
+    const mockClient = {
+      post: mock.fn(async () => ({
+        choices: [{ message: { content: 'Yes sir.' } }]
+      }))
+    }
+    const { chat } = await import('../lib/chat.js')
+    await chat(mockClient, 'hello', { model: 'grok-3-mini', system: 'You are a pirate.' })
+    const body = mockClient.post.mock.calls[0].arguments[1]
+    assert.equal(body.messages[0].role, 'system')
+    assert.equal(body.messages[0].content, 'You are a pirate.')
+    assert.equal(body.messages[1].role, 'user')
+    assert.equal(body.messages[1].content, 'hello')
+  })
+
+  it('passes response_format when provided', async () => {
+    const mockClient = {
+      post: mock.fn(async () => ({
+        choices: [{ message: { content: '{"answer":42}' } }]
+      }))
+    }
+    const { chat } = await import('../lib/chat.js')
+    await chat(mockClient, 'answer', { model: 'grok-3-mini', responseFormat: { type: 'json_object' } })
+    const body = mockClient.post.mock.calls[0].arguments[1]
+    assert.deepEqual(body.response_format, { type: 'json_object' })
+  })
+
+  it('passes instructions for search with system message', async () => {
+    const mockClient = {
+      post: mock.fn(async () => ({
+        output: [{ content: [{ type: 'output_text', text: 'Result.' }] }]
+      }))
+    }
+    const { chat } = await import('../lib/chat.js')
+    await chat(mockClient, 'query', { search: true, system: 'Be concise.' })
+    const body = mockClient.post.mock.calls[0].arguments[1]
+    assert.equal(body.instructions, 'Be concise.')
+  })
 })

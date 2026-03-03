@@ -70,4 +70,42 @@ describe('parseArgs', () => {
     const result = parseArgs(['embed', '--file', 'data.txt'])
     assert.equal(result.options.file, 'data.txt')
   })
+
+  it('parses --system flag', async () => {
+    const { parseArgs } = await import('../bin/grok.js')
+    const result = parseArgs(['chat', 'hi', '--system', 'You are a pirate.'])
+    assert.equal(result.options.system, 'You are a pirate.')
+  })
+
+  it('parses --deferred flag', async () => {
+    const { parseArgs } = await import('../bin/grok.js')
+    const result = parseArgs(['chat', 'hi', '--deferred'])
+    assert.equal(result.options.deferred, true)
+  })
+
+  it('parses video command with --duration', async () => {
+    const { parseArgs } = await import('../bin/grok.js')
+    const result = parseArgs(['video', 'a cat', '--duration', '10'])
+    assert.equal(result.command, 'video')
+    assert.equal(result.options.duration, 10)
+  })
+
+  it('parses --image and --video-url flags', async () => {
+    const { parseArgs } = await import('../bin/grok.js')
+    const result = parseArgs(['video', 'edit this', '--image', 'https://img.png', '--video-url', 'https://vid.mp4'])
+    assert.equal(result.options.image, 'https://img.png')
+    assert.equal(result.options.videoUrl, 'https://vid.mp4')
+  })
+
+  it('parses --response-format flag', async () => {
+    const { parseArgs } = await import('../bin/grok.js')
+    const result = parseArgs(['chat', 'hi', '--response-format', '{"type":"json_object"}'])
+    assert.deepEqual(result.options.responseFormat, { type: 'json_object' })
+  })
+
+  it('parses --no-poll flag', async () => {
+    const { parseArgs } = await import('../bin/grok.js')
+    const result = parseArgs(['video', 'a cat', '--no-poll'])
+    assert.equal(result.options.noPoll, true)
+  })
 })

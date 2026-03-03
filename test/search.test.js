@@ -32,4 +32,18 @@ describe('search', () => {
     assert.equal(path, '/responses')
     assert.ok(body.tools.some(t => t.type === 'x_search'))
   })
+
+  it('webSearch passes instructions when system message provided', async () => {
+    const mockClient = {
+      post: mock.fn(async () => ({
+        output: [{ content: [{ type: 'output_text', text: 'Result.' }] }]
+      }))
+    }
+
+    const { webSearch } = await import('../lib/search.js')
+    await webSearch(mockClient, 'test query', { system: 'Be brief.' })
+
+    const body = mockClient.post.mock.calls[0].arguments[1]
+    assert.equal(body.instructions, 'Be brief.')
+  })
 })

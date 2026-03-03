@@ -41,4 +41,16 @@ describe('format', () => {
     })
     assert.equal(result, 'Search result here.')
   })
+
+  it('formatVideo returns URL when done', async () => {
+    const { formatVideo } = await import('../lib/format.js')
+    const result = formatVideo({ status: 'done', video: { url: 'https://vidgen.x.ai/video.mp4' } })
+    assert.equal(result, 'https://vidgen.x.ai/video.mp4')
+  })
+
+  it('formatVideo returns request_id message when pending', async () => {
+    const { formatVideo } = await import('../lib/format.js')
+    const result = formatVideo({ request_id: 'abc-123' })
+    assert.ok(result.includes('abc-123'))
+  })
 })

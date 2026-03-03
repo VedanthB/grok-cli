@@ -8,7 +8,9 @@ import { generateImage } from '../lib/image.js'
 import { analyzeImage } from '../lib/vision.js'
 import { embed } from '../lib/embed.js'
 import { listModels } from '../lib/models.js'
-import { formatChat, formatModels, formatImage, formatEmbed } from '../lib/format.js'
+import { generateVideo, pollVideo } from '../lib/video.js'
+import { deferredChat, pollDeferred } from '../lib/deferred.js'
+import { formatChat, formatModels, formatImage, formatEmbed, formatVideo } from '../lib/format.js'
 import { readFileSync, writeFileSync } from 'node:fs'
 
 export function parseArgs(argv) {
@@ -58,6 +60,27 @@ export function parseArgs(argv) {
       case '--file':
         options.file = argv[++i]
         break
+      case '--system':
+        options.system = argv[++i]
+        break
+      case '--deferred':
+        options.deferred = true
+        break
+      case '--duration':
+        options.duration = parseInt(argv[++i])
+        break
+      case '--image':
+        options.image = argv[++i]
+        break
+      case '--video-url':
+        options.videoUrl = argv[++i]
+        break
+      case '--response-format':
+        options.responseFormat = JSON.parse(argv[++i])
+        break
+      case '--no-poll':
+        options.noPoll = true
+        break
       default:
         if (!arg.startsWith('-')) {
           args.push(arg)
@@ -81,29 +104,37 @@ function readStdin() {
 const HELP = `Usage: grok <command> [options]
 
 Commands:
-  chat <prompt>        Send a chat message (default model: grok-3-mini)
-  search <query>       Web search via Grok
-  xsearch <query>      X/Twitter search via Grok
-  image <prompt>       Generate an image
+  chat <prompt>           Send a chat message (default: grok-3-mini)
+  search <query>          Web search via Grok
+  xsearch <query>         X/Twitter search via Grok
+  image <prompt>          Generate an image
+  video <prompt>          Generate a video (async with polling)
   vision <path> <prompt>  Analyze an image
-  embed <text>         Generate embeddings
-  models               List available models
-  auth                 Manage API key
-  auth set <key>       Save API key
-  auth check           Verify API key
+  embed <text>            Generate embeddings
+  models                  List available models
+  auth                    Manage API key
+  auth set <key>          Save API key
+  auth check              Verify API key
 
 Options:
-  -m, --model <model>  Model selection
-  -s, --stream         Stream response
-  -t, --temperature <n> Sampling temperature
-  --max-tokens <n>     Max response tokens
-  --json               Raw JSON output
-  --search             Enable web search
-  --xsearch            Enable X search
-  --pro                Use pro image model
-  -o, --output <file>  Save output to file
-  --api-key <key>      Override API key
-  --file <path>        Read input from file
+  -m, --model <model>     Model selection
+  -s, --stream            Stream response
+  -t, --temperature <n>   Sampling temperature
+  --max-tokens <n>        Max response tokens
+  --json                  Raw JSON output
+  --system <msg>          System message / instructions
+  --search                Enable web search (uses Responses API)
+  --xsearch               Enable X search (uses Responses API)
+  --deferred              Async completion with polling (for reasoning models)
+  --response-format <json> Set response format (e.g. '{"type":"json_object"}')
+  --pro                   Use pro image model
+  -o, --output <file>     Save output to file
+  --api-key <key>         Override API key
+  --file <path>           Read input from file
+  --duration <n>          Video duration in seconds (1-15)
+  --image <url>           Source image URL (for image-to-video)
+  --video-url <url>       Source video URL (for video editing)
+  --no-poll               Return request_id without waiting (video/deferred)
 `
 
 async function main() {
@@ -149,7 +180,20 @@ async function main() {
       const prompt = args[0]
       if (!prompt) { console.error('Usage: grok chat <prompt>'); process.exitCode = 1; return }
       const stdin = await readStdin()
-      if (options.stream) {
+      if (options.deferred) {
+        const submitResult = await deferredChat(client, prompt, { ...options, stdin })
+        const requestId = submitResult.request_id
+        if (options.noPoll) {
+          console.log(requestId)
+        } else {
+          console.error(`Deferred request submitted (${requestId}), polling...`)
+          const result = await pollDeferred(client, requestId, {
+            onPoll: (attempt) => process.stderr.write(`\rPolling... attempt ${attempt}`)
+          })
+          console.error('')
+          console.log(formatChat(result, options.json))
+        }
+      } else if (options.stream) {
         for await (const chunk of chatStream(client, prompt, { ...options, stdin })) {
           const content = chunk.choices?.[0]?.delta?.content
           if (content) process.stdout.write(content)
@@ -200,6 +244,37 @@ async function main() {
       if (!imagePath || !prompt) { console.error('Usage: grok vision <image> <prompt>'); process.exitCode = 1; return }
       const result = await analyzeImage(client, imagePath, prompt, options)
       console.log(formatChat(result, options.json))
+      break
+    }
+
+    case 'video': {
+      const prompt = args[0]
+      if (!prompt) { console.error('Usage: grok video <prompt> [--duration N] [--image url] [--video-url url]'); process.exitCode = 1; return }
+      const result = await generateVideo(client, prompt, options)
+      if (options.noPoll) {
+        console.log(result.request_id)
+      } else if (options.json) {
+        console.error(`Video generation started (${result.request_id}), polling...`)
+        const video = await pollVideo(client, result.request_id, {
+          onPoll: (status, attempt) => process.stderr.write(`\rPolling... ${status} (attempt ${attempt})`)
+        })
+        console.error('')
+        console.log(JSON.stringify(video, null, 2))
+      } else {
+        console.error(`Video generation started (${result.request_id}), polling...`)
+        const video = await pollVideo(client, result.request_id, {
+          onPoll: (status, attempt) => process.stderr.write(`\rPolling... ${status} (attempt ${attempt})`)
+        })
+        console.error('')
+        if (options.output) {
+          const res = await globalThis.fetch(video.video.url)
+          const buf = Buffer.from(await res.arrayBuffer())
+          writeFileSync(options.output, buf)
+          console.error(`Saved to ${options.output}`)
+        } else {
+          console.log(video.video.url)
+        }
+      }
       break
     }
 

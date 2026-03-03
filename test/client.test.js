@@ -52,6 +52,36 @@ describe('client', () => {
     assert.deepEqual(result, { data: [] })
   })
 
+  it('getWithStatus returns status and data for 202', async () => {
+    const mockFetch = mock.fn(async () => ({
+      ok: true,
+      status: 202,
+      json: async () => { throw new SyntaxError('Unexpected end of JSON input') }
+    }))
+
+    const { createClient } = await import('../lib/client.js')
+    const client = createClient('test-key', mockFetch)
+    const result = await client.getWithStatus('/chat/deferred-completion/req_123')
+
+    assert.equal(result.status, 202)
+    assert.equal(result.data, null)
+  })
+
+  it('getWithStatus returns status and data for 200', async () => {
+    const mockFetch = mock.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: 'Done' } }] })
+    }))
+
+    const { createClient } = await import('../lib/client.js')
+    const client = createClient('test-key', mockFetch)
+    const result = await client.getWithStatus('/chat/deferred-completion/req_123')
+
+    assert.equal(result.status, 200)
+    assert.equal(result.data.choices[0].message.content, 'Done')
+  })
+
   it('stream returns async iterable of SSE chunks', async () => {
     const sseData = [
       'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
